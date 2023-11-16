@@ -1,0 +1,44 @@
+---
+title: "Sysmon Wrangling"
+author: "Randall Dickinson"
+date: "2023-11-15"
+output: html_document
+---
+
+```{r, eval=FALSE, echo=TRUE}
+library(tidyr)
+library(dplyr)
+library(stringr)
+
+sysmon_data = read.csv("sysmon_data42.csv", sep=",", header = TRUE)
+summary(sysmon_data)
+head(sysmon_data)
+
+# Separate the 'event' column into multiple rows
+sysmon_data_long <- sysmon_data %>%
+  mutate(row = row_number()) %>%
+  separate_rows(event, sep = "\\n") %>%
+  filter(event != "") %>%
+  mutate(event = str_trim(event, side = "both")) %>%
+  extract(event, into = c("key", "value"), regex = "(.*?): (.*)") %>%
+  spread(key, value) %>%
+  select(-row)
+
+# Bind the new columns to the original dataframe
+sysmon_data <- sysmon_data %>%
+  select(-event) %>%
+  bind_cols(sysmon_data_long)
+
+# Remove columns 6 to 10
+sysmon_data <- sysmon_data %>% select(-c(6:10))
+
+# Remove the last column
+sysmon_data <- sysmon_data %>% select(-ncol(sysmon_data))
+
+# View the modified dataframe
+head(sysmon_data)
+
+# Save the dataframe to a CSV file
+write.csv(sysmon_data, "tidy_sysmon_data.csv", row.names = FALSE)
+
+```
